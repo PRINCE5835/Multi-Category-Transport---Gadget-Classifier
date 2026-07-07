@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Transport & Gadget Classifier</title>
+<style>
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #eef2f7;
+  margin: 0;
+  padding: 40px 20px;
+}
+
+.dashboard {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 24px;
+  color: #1a1a2e;
+  text-align: center;
+}
+
+.sub {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
+  font-size: 14px;
+}
+
+.drop-box {
+  border: 3px dashed #bbb;
+  border-radius: 12px;
+  padding: 50px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.2s;
+  background: #fafbfc;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-box:hover {
+  border-color: #4a90d9;
+  background: #f0f7ff;
+}
+
+.drop-box.have-img {
+  border-style: solid;
+  border-color: #4a90d9;
+  padding: 15px;
+  cursor: default;
+}
+
+.drop-icon {
+  font-size: 48px;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.drop-text {
+  color: #555;
+  font-size: 16px;
+}
+
+.drop-hint {
+  color: #999;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.preview-area {
+  max-width: 100%;
+}
+
+.preview-area img {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;
+}
+
+.clear-btn {
+  margin-top: 12px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  background: #c0392b;
+}
+
+.spinner {
+  display: none;
+  width: 36px;
+  height: 36px;
+  margin: 20px auto;
+  border: 4px solid #e0e0e0;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.result-box {
+  display: none;
+  margin-top: 20px;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 18px;
+  border: 1px solid #e0e0e0;
+}
+
+.result-box .label {
+  color: #2c5282;
+  font-weight: 700;
+}
+
+.result-box .conf {
+  color: #276749;
+  font-weight: 600;
+}
+
+.err {
+  color: #c53030;
+  margin-top: 15px;
+  text-align: center;
+  display: none;
+  font-weight: 500;
+}
+
+#fileInput {
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+  <h1>Transport & Gadget Classifier</h1>
+  <p class="sub">Drop a picture of a car, bike, or phone</p>
+
+  <div class="drop-box" id="dropBox">
+    <div class="drop-icon">&#128247;</div>
+    <div class="drop-text">Drag & drop an image here</div>
+    <div class="drop-hint">or click to browse files</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="spinner" id="spinner"></div>
+  <div class="result-box" id="resultBox"></div>
+  <div class="err" id="errMsg"></div>
+</div>
+
+<script>
+const dropBox = document.getElementById("dropBox");
+const fileInput = document.getElementById("fileInput");
+const spinner = document.getElementById("spinner");
+const resultBox = document.getElementById("resultBox");
+const errMsg = document.getElementById("errMsg");
+
+let currentFile = null;
+
+dropBox.addEventListener("click", function() {
+  if (dropBox.classList.contains("have-img")) return;
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", function() {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+dropBox.addEventListener("dragover", function(e) {
+  e.preventDefault();
+  dropBox.style.borderColor = "#4a90d9";
+  dropBox.style.background = "#f0f7ff";
+});
+
+dropBox.addEventListener("dragleave", function() {
+  dropBox.style.borderColor = "#bbb";
+  dropBox.style.background = "#fafbfc";
+});
+
+dropBox.addEventListener("drop", function(e) {
+  e.preventDefault();
+  dropBox.style.borderColor = "#bbb";
+  dropBox.style.background = "#fafbfc";
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith("image/")) {
+    showErr("that file is not an image");
+    return;
+  }
+  currentFile = file;
+  resultBox.style.display = "none";
+  errMsg.style.display = "none";
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    dropBox.innerHTML = "";
+      let wrap = document.createElement("div");
+      wrap.className = "preview-area";
+      let img = document.createElement("img");
+      img.src = e.target.result;
+      wrap.appendChild(img);
+      let btn = document.createElement("button");
+      btn.className = "clear-btn";
+      btn.textContent = "Remove";
+      btn.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        resetBox();
+      });
+      wrap.appendChild(btn);
+      dropBox.appendChild(wrap);
+      dropBox.classList.add("have-img");
+    sendToServer(file);
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetBox() {
+  currentFile = null;
+  fileInput.value = "";
+  dropBox.innerHTML = `
+    <div class="drop-icon">&#128247;</div>
+    <div class="drop-text">Drag & drop an image here</div>
+    <div class="drop-hint">or click to browse files</div>`;
+  dropBox.classList.remove("have-img");
+  resultBox.style.display = "none";
+  errMsg.style.display = "none";
+  spinner.style.display = "none";
+}
+
+async function sendToServer(file) {
+  spinner.style.display = "block";
+  resultBox.style.display = "none";
+  errMsg.style.display = "none";
+
+  let fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    let res = await fetch("http://127.0.0.1:5000/predict", { method: "POST", body: fd });
+    let data = await res.json();
+    spinner.style.display = "none";
+    if (res.ok) {
+      resultBox.innerHTML = "Result: <span class=\"label\">" + data.label + "</span> - <span class=\"conf\">" + data.confidence + "% Confidence</span>";
+      resultBox.style.display = "block";
+    } else {
+      showErr(data.error || "prediction failed");
+    }
+  } catch (err) {
+    spinner.style.display = "none";
+    showErr("cant connect to backend server");
+  }
+}
+
+function showErr(msg) {
+  errMsg.textContent = msg;
+  errMsg.style.display = "block";
+}
+</script>
+</body>
+</html>
