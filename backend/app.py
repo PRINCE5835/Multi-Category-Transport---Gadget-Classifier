@@ -67,6 +67,16 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/debug", methods=["GET"])
+def debug():
+    try:
+        dummy = torch.randn(1, 3, 224, 224).to(device)
+        with torch.no_grad():
+            out = my_model(dummy)
+        return jsonify({"inference_ok": True, "output_shape": list(out.shape)})
+    except Exception as e:
+        return jsonify({"inference_ok": False, "error": str(e)})
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "loaded": True})
