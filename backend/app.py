@@ -10,7 +10,7 @@ import os
 import joblib
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*", "allow_headers": "*", "methods": ["GET", "POST", "OPTIONS"]}})
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
