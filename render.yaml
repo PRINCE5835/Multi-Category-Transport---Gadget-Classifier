@@ -3,5 +3,5 @@ services:
     name: transport-gadget-classifier-api
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
+    startCommand: gunicorn backend.app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
     healthCheckPath: /health
