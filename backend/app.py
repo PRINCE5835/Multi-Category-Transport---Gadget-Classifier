@@ -7,19 +7,21 @@ from torchvision import transforms, models
 import io
 import json
 import os
+import joblib
 
 app = Flask(__name__)
 CORS(app)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class_names = json.load(open("../model/class_names.json"))
+base_dir = os.path.dirname(os.path.abspath(__file__))
+class_names = json.load(open(os.path.join(base_dir, "class_names.json")))
 n_classes = len(class_names)
 
 my_model = models.mobilenet_v2(weights=None)
 feat_count = my_model.classifier[1].in_features
 my_model.classifier[1] = nn.Linear(feat_count, n_classes)
-my_model.load_state_dict(torch.load("../model/classifier.pth", map_location=device, weights_only=True))
+my_model.load_state_dict(joblib.load(os.path.join(base_dir, "classifier.joblib")))
 my_model = my_model.to(device)
 my_model.eval()
 
@@ -44,5 +46,10 @@ def predict():
     conf = round(conf.item() * 100, 2)
     return jsonify({"label": label, "confidence": conf})
 
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

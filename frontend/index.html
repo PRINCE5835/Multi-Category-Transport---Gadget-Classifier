@@ -172,6 +172,10 @@ h1 {
 </div>
 
 <script>
+const API_URL = "http://127.0.0.1:5000";
+// when deploying, change API_URL above to your Render backend URL
+// eg: const API_URL = "https://your-app-name.onrender.com";
+
 const dropBox = document.getElementById("dropBox");
 const fileInput = document.getElementById("fileInput");
 const spinner = document.getElementById("spinner");
@@ -261,7 +265,7 @@ async function sendToServer(file) {
   fd.append("file", file);
 
   try {
-    let res = await fetch("http://127.0.0.1:5000/predict", { method: "POST", body: fd });
+    let res = await fetch(API_URL + "/predict", { method: "POST", body: fd });
     let data = await res.json();
     spinner.style.display = "none";
     if (res.ok) {

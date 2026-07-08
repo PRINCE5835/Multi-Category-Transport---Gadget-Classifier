@@ -4,3 +4,5 @@ pillow
 torch
 torchvision
 numpy
+joblib
+gunicorn

@@ -4,6 +4,7 @@ from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader
 import os
 import json
+import joblib
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("using device:", device)
@@ -67,4 +68,5 @@ for ep in range(epochs):
     print(f"val accuracy: {100*correct/total:.2f}%")
 
 torch.save(my_model.state_dict(), save_path)
+joblib.dump(my_model.state_dict(), "classifier.joblib")
 print("saved model to", save_path)
