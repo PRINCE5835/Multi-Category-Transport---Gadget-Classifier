@@ -8,9 +8,12 @@ import io
 import json
 import os
 import joblib
+import traceback
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "allow_headers": "*", "methods": ["GET", "POST", "OPTIONS"]}})
+
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -31,20 +34,33 @@ my_transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-@app.route("/predict", methods=["POST"])
+@app.after_request
+def add_cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return resp
+
+@app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
-    if "file" not in request.files:
-        return jsonify({"error": "no file uploaded"}), 400
-    f = request.files["file"]
-    img = Image.open(io.BytesIO(f.read())).convert("RGB")
-    tensor_img = my_transform(img).unsqueeze(0).to(device)
-    with torch.no_grad():
-        out = my_model(tensor_img)
-        probs = torch.nn.functional.softmax(out[0], dim=0)
-        conf, idx = torch.max(probs, 0)
-    label = class_names[idx.item()]
-    conf = round(conf.item() * 100, 2)
-    return jsonify({"label": label, "confidence": conf})
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "no file uploaded"}), 400
+        f = request.files["file"]
+        img = Image.open(io.BytesIO(f.read())).convert("RGB")
+        tensor_img = my_transform(img).unsqueeze(0).to(device)
+        with torch.no_grad():
+            out = my_model(tensor_img)
+            probs = torch.nn.functional.softmax(out[0], dim=0)
+            conf, idx = torch.max(probs, 0)
+        label = class_names[idx.item()]
+        conf = round(conf.item() * 100, 2)
+        return jsonify({"label": label, "confidence": conf})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/health", methods=["GET"])
 def health():
