@@ -3,6 +3,5 @@ __pycache__/
 *.pyo
 .DS_Store
 thumbs.db
-*.pth
 dataset/
 model/classifier.pth

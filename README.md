@@ -16,6 +16,6 @@ python app.py
 Then open frontend/index.html in a browser.
 
 ## Deployed Links
-- **Frontend (Vercel):** https://frontend-lyart-xi-35.vercel.app
+- **Frontend (Vercel):** https://frontend-ten-snowy-7eut4v1ct0.vercel.app
 - **Backend API (Render):** https://multi-category-transport-gadget.onrender.com
 - **API Endpoint:** POST https://multi-category-transport-gadget.onrender.com/predict
