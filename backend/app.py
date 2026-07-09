@@ -7,7 +7,6 @@ from torchvision import transforms, models
 import io
 import json
 import os
-import sys
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "allow_headers": "*", "methods": ["GET", "POST", "OPTIONS"]}})
@@ -16,29 +15,29 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 device = torch.device("cpu")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 class_names = json.load(open(os.path.join(base_dir, "class_names.json")))
-n_classes = len(class_names)
 
+my_model = None
 my_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-print("loading model...")
-sys.stdout.flush()
-m = models.mobilenet_v2(weights=None)
-feat_count = m.classifier[1].in_features
-m.classifier[1] = nn.Linear(feat_count, n_classes)
-state = torch.load(os.path.join(base_dir, "classifier.pth"), map_location=device, weights_only=True)
-m.load_state_dict(state)
-m = m.to(device)
-m.eval()
-dummy = torch.randn(1, 3, 224, 224).to(device)
-with torch.no_grad():
-    m(dummy)
-my_model = m
-print("model loaded")
-sys.stdout.flush()
+def load_model():
+    global my_model
+    if my_model is not None:
+        return
+    m = models.mobilenet_v2(weights=None)
+    feat_count = m.classifier[1].in_features
+    m.classifier[1] = nn.Linear(feat_count, len(class_names))
+    state = torch.load(os.path.join(base_dir, "classifier.pth"), map_location=device, weights_only=True)
+    m.load_state_dict(state)
+    m = m.to(device)
+    m.eval()
+    dummy = torch.randn(1, 3, 224, 224).to(device)
+    with torch.no_grad():
+        m(dummy)
+    my_model = m
 
 @app.after_request
 def add_cors(resp):
@@ -52,6 +51,7 @@ def predict():
     if request.method == "OPTIONS":
         return jsonify({"ok": True})
     try:
+        load_model()
         if "file" not in request.files:
             return jsonify({"error": "no file uploaded"}), 400
         f = request.files["file"]
@@ -67,19 +67,9 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/debug", methods=["GET"])
-def debug():
-    try:
-        dummy = torch.randn(1, 3, 224, 224).to(device)
-        with torch.no_grad():
-            out = my_model(dummy)
-        return jsonify({"inference_ok": True, "output_shape": list(out.shape)})
-    except Exception as e:
-        return jsonify({"inference_ok": False, "error": str(e)})
-
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "loaded": True})
+    return jsonify({"status": "ok", "loaded": my_model is not None})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
